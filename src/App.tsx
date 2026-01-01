@@ -21,7 +21,7 @@ type ActionKey =
   | 'resolve'
   | 'withdraw'
 
-type Page = 'profile' | 'arena' | 'auction' | 'howto'
+type Page = 'home' | 'profile' | 'arena' | 'auction' | 'howto'
 
 const shorten = (value: unknown) => {
   if (typeof value === 'string' && value.length >= 10) {
@@ -43,7 +43,7 @@ function App() {
   const { providerAvailable, wallet, status, account, error: walletError, connect, disconnect } =
     useWeilWallet()
 
-  const [activePage, setActivePage] = useState<Page>('profile')
+  const [activePage, setActivePage] = useState<Page>('home')
 
   const [contractAddress, setContractAddress] = useState(
     import.meta.env.VITE_ESCALATE_CONTRACT ?? '',
@@ -181,12 +181,26 @@ function App() {
     }
   }
 
+  const WAUTH_INSTALL_URL = 'https://chromewebstore.google.com/detail/wauth/nmdlcegenjnehamofkaaifhgjibdpdag'
+
   const connectLabel = () => {
     if (!providerAvailable) return 'Install Weil Wallet'
     if (status === 'connecting') return 'Connecting...'
     if (status === 'connected') return 'Connected'
     if (status === 'error') return 'Retry connection'
     return 'Connect Weil Wallet'
+  }
+
+  const handleConnectClick = () => {
+    if (!providerAvailable) {
+      window.open(WAUTH_INSTALL_URL, '_blank')
+      return
+    }
+    if (status === 'connected') {
+      disconnect()
+    } else {
+      connect()
+    }
   }
 
   const handleBioChange = (value: string) => {
@@ -338,6 +352,13 @@ function App() {
         </div>
         <nav className="nav">
           <button
+            className={`nav__link ${activePage === 'home' ? 'nav__link--active' : ''}`}
+            onClick={() => setActivePage('home')}
+            type="button"
+          >
+            Home
+          </button>
+          <button
             className={`nav__link ${activePage === 'profile' ? 'nav__link--active' : ''}`}
             onClick={() => setActivePage('profile')}
             type="button"
@@ -369,73 +390,76 @@ function App() {
         <div className="topbar__cta">
           <button
             className="ghost-btn"
-            onClick={() => {
-              if (status === 'connected') {
-                disconnect()
-              } else {
-                connect()
-              }
-            }}
+            onClick={handleConnectClick}
           >
             {connectLabel()}
           </button>
         </div>
       </header>
 
-      <section className="hero">
-        <div className="hero__copy">
-          <p className="eyebrow">Weil-authenticated bluffing</p>
-          <h1>
-            Fast actions for your <span className="highlight">Escalate</span> universe.
-          </h1>
-          <p className="lede">
-            Connect Weil Wallet, register, fund, start hands, or run auctions—all in a streamlined,
-            minimal black layout.
-          </p>
-          <div className="hero__badges">
-            <span className="badge">Profile</span>
-            <span className="badge">Arena</span>
-            <span className="badge">Auction</span>
-            <span className="badge">How to</span>
-          </div>
-        </div>
-        <div className="hero__panel">
-          <SectionCard title="Weil Wallet" subtitle="Authenticate to start playing">
-            <div className="status-block">
-              <p className="status-label">Status</p>
-              <p className="status-value">
-                {status === 'connected' ? 'Connected' : status === 'connecting' ? 'Connecting' : 'Idle'}
-              </p>
-            </div>
-            <div className="status-block">
-              <p className="status-label">Address</p>
-              <p className="status-value">{shorten(account)}</p>
-            </div>
-            <Input
-              label="Contract address"
-              value={contractAddress}
-              placeholder="Add your Escalate contract address"
-              onChange={setContractAddress}
-              error={!contractAddress ? 'Required' : null}
-            />
-            <button
-              className="primary-btn"
-              onClick={() => {
-                if (status === 'connected') {
-                  disconnect()
-                } else {
-                  connect()
-                }
-              }}
-            >
-              {connectLabel()}
-            </button>
-            {walletError ? <p className="helper helper--error">{walletError}</p> : null}
-          </SectionCard>
-        </div>
-      </section>
-
       {notice ? <div className="notice">{notice}</div> : null}
+
+      {activePage === 'home' && (
+        <section className="hero">
+          <div className="hero__copy">
+            <p className="eyebrow">Weil-authenticated bluffing</p>
+            <h1>
+              Fast actions for your <span className="highlight">Escalate</span> universe.
+            </h1>
+            <p className="lede">
+              Connect Weil Wallet, register, fund, start hands, or run auctions—all in a streamlined,
+              minimal black layout.
+            </p>
+            <div className="hero__badges">
+              <span className="badge" onClick={() => setActivePage('profile')} style={{ cursor: 'pointer' }}>Profile</span>
+              <span className="badge" onClick={() => setActivePage('arena')} style={{ cursor: 'pointer' }}>Arena</span>
+              <span className="badge" onClick={() => setActivePage('auction')} style={{ cursor: 'pointer' }}>Auction</span>
+              <span className="badge" onClick={() => setActivePage('howto')} style={{ cursor: 'pointer' }}>How to</span>
+            </div>
+          </div>
+          <div className="hero__panel">
+            <SectionCard title="Weil Wallet" subtitle="Authenticate to start playing">
+              <div className="status-block">
+                <p className="status-label">Status</p>
+                <p className="status-value">
+                  {status === 'connected' ? 'Connected' : status === 'connecting' ? 'Connecting' : 'Idle'}
+                </p>
+              </div>
+              <div className="status-block">
+                <p className="status-label">Address</p>
+                <p className="status-value">{shorten(account)}</p>
+              </div>
+              <Input
+                label="Contract address"
+                value={contractAddress}
+                placeholder="Add your Escalate contract address"
+                onChange={setContractAddress}
+                error={!contractAddress ? 'Required' : null}
+              />
+              <button
+                className="primary-btn"
+                onClick={handleConnectClick}
+              >
+                {connectLabel()}
+              </button>
+              {walletError ? <p className="helper helper--error">{walletError}</p> : null}
+              {!providerAvailable && (
+                <p className="helper" style={{ marginTop: '8px' }}>
+                  WAuth extension not detected.{' '}
+                  <a
+                    href={WAUTH_INSTALL_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: '#fff', textDecoration: 'underline' }}
+                  >
+                    Install from Chrome Web Store
+                  </a>
+                </p>
+              )}
+            </SectionCard>
+          </div>
+        </section>
+      )}
 
       {activePage === 'profile' && (
         <ProfilePage

@@ -23,6 +23,41 @@ export const buildEscalateApi = (
   const exec = async <T>(method: string, params?: Record<string, unknown>): Promise<T> => {
     assertAddress(contractAddress)
     const result = await (wallet.contracts.execute as any)(contractAddress, method, params ?? {})
+    
+    console.log(`Contract call ${method}:`, result)
+    
+    // Handle Result<T, Error> response from contract (Weil Wallet response format)
+    if (result && typeof result === 'object') {
+      let resultData = result
+      
+      // Check if txn_result exists (Weil Wallet response format)
+      if ('txn_result' in result && typeof result.txn_result === 'string') {
+        try {
+          resultData = JSON.parse(result.txn_result)
+        } catch (e) {
+          console.error('Failed to parse txn_result:', e)
+          return result as T
+        }
+      }
+      
+      // Handle Ok/Err wrapper
+      if ('Ok' in resultData) {
+        // Parse the JSON string inside Ok if it's a string
+        const okData = typeof resultData.Ok === 'string' 
+          ? JSON.parse(resultData.Ok) 
+          : resultData.Ok
+        return okData as T
+      }
+      
+      // Handle Err case
+      if ('Err' in resultData) {
+        throw new Error(typeof resultData.Err === 'string' ? resultData.Err : JSON.stringify(resultData.Err))
+      }
+      
+      // Direct data (fallback)
+      return resultData as T
+    }
+    
     return result as T
   }
 

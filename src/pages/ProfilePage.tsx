@@ -110,7 +110,7 @@ export function ProfilePage({
           </div>
           <div className="stat">
             <p className="stat__label">Balance</p>
-            <p className="stat__value">{myProfile ? myProfile.balance.toFixed(2) : '0.00'}</p>
+            <p className="stat__value">{myProfile?.balance != null ? myProfile.balance.toFixed(2) : '0.00'}</p>
           </div>
           <div className="stat">
             <p className="stat__label">Cards</p>
@@ -133,14 +133,18 @@ export function ProfilePage({
         <div className="list">
           <p className="eyebrow">All players</p>
           <div className="list__grid">
-            {users.map((user) => (
-              <div key={user.user_id} className="list__item">
-                <p className="headline">{shorten(user.user_id)}</p>
-                <p className="muted">{user.bio}</p>
-                <p className="helper">Balance: {user.balance.toFixed(2)}</p>
-                <p className="helper">Cards: {user.cards.length}</p>
-              </div>
-            ))}
+            {Array.isArray(users) && users.length > 0 ? (
+              users.map((user) => (
+                <div key={user.user_id} className="list__item">
+                  <p className="headline">{shorten(user.user_id)}</p>
+                  <p className="muted">{user.bio}</p>
+                  <p className="helper">Balance: {user.balance != null ? user.balance.toFixed(2) : '0.00'}</p>
+                  <p className="helper">Cards: {user.cards?.length ?? 0}</p>
+                </div>
+              ))
+            ) : (
+              <p className="muted">No players yet.</p>
+            )}
           </div>
         </div>
       </SectionCard>

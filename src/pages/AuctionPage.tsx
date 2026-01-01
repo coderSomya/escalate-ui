@@ -136,27 +136,30 @@ export function AuctionPage({
         <div className="list">
           <p className="eyebrow">Live offers</p>
           <div className="list__grid">
-            {offers.map((offer, index) => (
-              <div key={`${offer.creator_id}-${index}`} className="list__item">
-                <p className="headline">From {shorten(offer.creator_id)}</p>
-                <p className="helper">Start: {offer.initial_price}</p>
-                <p className="helper">
-                  Current: {offer.current_bid ?? '—'}{' '}
-                  {offer.current_bidder_id ? `by ${shorten(offer.current_bidder_id)}` : ''}
-                </p>
-                <p className={`status status--${offer.is_resolved ? 'good' : 'warn'}`}>
-                  {offer.is_resolved ? 'Resolved' : 'Open'}
-                </p>
-                <div className="badge-row">
-                  {offer.cards.map((card) => (
-                    <span key={card} className="badge badge--solid">
-                      {card}
-                    </span>
-                  ))}
+            {Array.isArray(offers) && offers.length > 0 ? (
+              offers.map((offer, index) => (
+                <div key={`${offer.creator_id}-${index}`} className="list__item">
+                  <p className="headline">From {shorten(offer.creator_id)}</p>
+                  <p className="helper">Start: {offer.initial_price ?? 0}</p>
+                  <p className="helper">
+                    Current: {offer.current_bid ?? '—'}{' '}
+                    {offer.current_bidder_id ? `by ${shorten(offer.current_bidder_id)}` : ''}
+                  </p>
+                  <p className={`status status--${offer.is_resolved ? 'good' : 'warn'}`}>
+                    {offer.is_resolved ? 'Resolved' : 'Open'}
+                  </p>
+                  <div className="badge-row">
+                    {Array.isArray(offer.cards) && offer.cards.map((card) => (
+                      <span key={card} className="badge badge--solid">
+                        {card}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-            {!offers.length ? <p className="muted">No offers yet.</p> : null}
+              ))
+            ) : (
+              <p className="muted">No offers yet.</p>
+            )}
           </div>
         </div>
       </SectionCard>
