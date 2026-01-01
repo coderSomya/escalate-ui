@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from 'react'
 import { CARD_OPTIONS, type Card } from '../types/escalate'
+import { CardBadge } from './CardIcon'
 
 export const SectionCard = ({
   title,
@@ -57,8 +58,17 @@ export const CardPills = ({
               type="button"
               className={`pill ${picked > 0 ? 'pill--active' : ''} ${fullyUsed ? 'pill--max' : ''}`}
               onClick={() => onToggle(card)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 12px',
+              }}
             >
-              {card} • {picked}/{total}
+              <CardBadge card={card} />
+              <span style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                {picked}/{total}
+              </span>
             </button>
           )
         })

@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { ActionRow, CardPills, Input, SectionCard } from '../components/ui'
+import { CardBadge } from '../components/CardIcon'
 import type { Card, Offer } from '../types/escalate'
 
 type Status = 'idle' | 'loading' | 'done'
@@ -14,6 +16,7 @@ type AuctionPageProps = {
   withdrawOfferId: string
   myCards: Card[]
   offers: Offer[]
+  userAddress: string | null
   status: {
     offer: Status
     bid: Status
@@ -37,13 +40,14 @@ export function AuctionPage({
   offerCards,
   offerAmount,
   offerError,
-  bidOfferId,
-  bidAmount,
-  bidError,
-  resolveOfferId,
-  withdrawOfferId,
+  bidOfferId: _bidOfferId,
+  bidAmount: _bidAmount,
+  bidError: _bidError,
+  resolveOfferId: _resolveOfferId,
+  withdrawOfferId: _withdrawOfferId,
   myCards,
   offers,
+  userAddress,
   status,
   onToggleOfferCard,
   onChangeOfferAmount,
@@ -57,9 +61,52 @@ export function AuctionPage({
   onWithdraw,
   shorten,
 }: AuctionPageProps) {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [biddingOnOffer, setBiddingOnOffer] = useState<string | null>(null)
+  const [bidAmounts, setBidAmounts] = useState<Record<string, string>>({})
+
+  const filteredOffers = Array.isArray(offers) 
+    ? offers.filter(offer => {
+        if (!searchQuery) return true
+        const query = searchQuery.toLowerCase()
+        return (
+          offer.creator_id.toLowerCase().includes(query) ||
+          (offer.current_bidder_id?.toLowerCase().includes(query)) ||
+          offer.cards.some(card => card.toLowerCase().includes(query))
+        )
+      })
+    : []
+
+  const handleBidClick = (offerId: string, creatorId: string) => {
+    // Check if this is the user's own offer
+    if (userAddress && creatorId.toLowerCase() === userAddress.toLowerCase()) {
+      // Set for resolving
+      onChangeResolveOfferId(offerId)
+      onResolve()
+    } else {
+      setBiddingOnOffer(offerId)
+    }
+  }
+
+  const handleSubmitBid = (offerId: string) => {
+    const amount = bidAmounts[offerId]
+    if (!amount) return
+    
+    onChangeBidOfferId(offerId)
+    onChangeBidAmount(amount)
+    onBid()
+    setBiddingOnOffer(null)
+    setBidAmounts(prev => ({ ...prev, [offerId]: '' }))
+  }
+
+  const handleWithdrawClick = (offerId: string) => {
+    onChangeWithdrawOfferId(offerId)
+    onWithdraw()
+  }
+
   return (
     <section className="grid" id="auction">
-      <SectionCard title="Auction" subtitle="Offer, bid, resolve, and withdraw">
+      <SectionCard title="Auction">
         <ActionRow
           label="Create offer"
           action={
@@ -79,86 +126,121 @@ export function AuctionPage({
           <CardPills selected={offerCards} available={myCards} onToggle={onToggleOfferCard} />
         </ActionRow>
 
-        <ActionRow
-          label="Bid"
-          action={
-            <button className="primary-btn" disabled={status.bid === 'loading'} onClick={onBid}>
-              {status.bid === 'loading' ? 'Bidding...' : 'Place bid'}
-            </button>
-          }
-        >
-          <Input
-            label="Offer id"
-            value={bidOfferId}
-            placeholder="offer-1"
-            onChange={onChangeBidOfferId}
-            error={bidError}
-          />
-          <Input
-            label="Bid amount"
-            type="number"
-            value={bidAmount}
-            placeholder="30"
-            onChange={onChangeBidAmount}
-            error={bidError}
-          />
-        </ActionRow>
-
-        <ActionRow
-          label="Resolve / Withdraw"
-          action={
-            <div className="action-row__stack">
-              <button className="ghost-btn" disabled={status.resolve === 'loading'} onClick={onResolve}>
-                {status.resolve === 'loading' ? 'Resolving...' : 'Resolve'}
-              </button>
-              <button className="ghost-btn" disabled={status.withdraw === 'loading'} onClick={onWithdraw}>
-                {status.withdraw === 'loading' ? 'Withdrawing...' : 'Withdraw bid'}
-              </button>
-            </div>
-          }
-        >
-          <div className="field-group">
+        <div className="list">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <p className="eyebrow">Live offers</p>
             <Input
-              label="Resolve offer id"
-              value={resolveOfferId}
-              placeholder="offer-1"
-              onChange={onChangeResolveOfferId}
-            />
-            <Input
-              label="Withdraw offer id"
-              value={withdrawOfferId}
-              placeholder="offer-1"
-              onChange={onChangeWithdrawOfferId}
+              label=""
+              value={searchQuery}
+              placeholder="Search by creator, bidder, or card..."
+              onChange={setSearchQuery}
             />
           </div>
-        </ActionRow>
-
-        <div className="list">
-          <p className="eyebrow">Live offers</p>
-          <div className="list__grid">
-            {Array.isArray(offers) && offers.length > 0 ? (
-              offers.map((offer, index) => (
-                <div key={`${offer.creator_id}-${index}`} className="list__item">
-                  <p className="headline">From {shorten(offer.creator_id)}</p>
-                  <p className="helper">Start: {offer.initial_price ?? 0}</p>
-                  <p className="helper">
-                    Current: {offer.current_bid ?? '—'}{' '}
-                    {offer.current_bidder_id ? `by ${shorten(offer.current_bidder_id)}` : ''}
-                  </p>
-                  <p className={`status status--${offer.is_resolved ? 'good' : 'warn'}`}>
-                    {offer.is_resolved ? 'Resolved' : 'Open'}
-                  </p>
-                  <div className="badge-row">
-                    {Array.isArray(offer.cards) && offer.cards.map((card) => (
-                      <span key={card} className="badge badge--solid">
-                        {card}
-                      </span>
-                    ))}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+            {filteredOffers.length > 0 ? (
+              filteredOffers.map((offer, index) => {
+                const isMyOffer = userAddress && offer.creator_id.toLowerCase() === userAddress.toLowerCase()
+                const isMyBid = userAddress && offer.current_bidder_id?.toLowerCase() === userAddress.toLowerCase()
+                const isBiddingOn = biddingOnOffer === `${offer.creator_id}-${index}`
+                
+                return (
+                  <div 
+                    key={`${offer.creator_id}-${index}`} 
+                    style={{ 
+                      padding: '12px', 
+                      background: 'rgba(255,255,255,0.05)', 
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.1)'
+                    }}
+                  >
+                    <p className="headline">From {shorten(offer.creator_id)}</p>
+                    <p className="helper">Start: {offer.initial_price ?? 0}</p>
+                    <p className="helper">
+                      Current: {offer.current_bid ?? '—'}{' '}
+                      {offer.current_bidder_id ? `by ${shorten(offer.current_bidder_id)}` : ''}
+                    </p>
+                    <p className={`status status--${offer.is_resolved ? 'good' : 'warn'}`}>
+                      {offer.is_resolved ? 'Resolved' : 'Open'}
+                    </p>
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '8px' }}>
+                      {Array.isArray(offer.cards) && offer.cards.map((card, idx) => (
+                        <CardBadge key={`${card}-${idx}`} card={card} />
+                      ))}
+                    </div>
+                    
+                    {/* Bid/Resolve/Withdraw actions */}
+                    {!offer.is_resolved && (
+                      <div style={{ marginTop: '12px' }}>
+                        {isBiddingOn ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <Input
+                              label="Bid Amount"
+                              type="number"
+                              value={bidAmounts[`${offer.creator_id}-${index}`] || ''}
+                              placeholder={`More than ${offer.current_bid ?? offer.initial_price}`}
+                              onChange={(value) => setBidAmounts(prev => ({ ...prev, [`${offer.creator_id}-${index}`]: value }))}
+                            />
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button
+                                className="primary-btn"
+                                style={{ flex: 1 }}
+                                disabled={status.bid === 'loading'}
+                                onClick={() => handleSubmitBid(`${offer.creator_id}-${index}`)}
+                              >
+                                {status.bid === 'loading' ? 'Bidding...' : 'Submit Bid'}
+                              </button>
+                              <button
+                                className="ghost-btn"
+                                style={{ flex: 1 }}
+                                onClick={() => setBiddingOnOffer(null)}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            {isMyOffer ? (
+                              <button
+                                className="primary-btn"
+                                style={{ flex: 1 }}
+                                disabled={status.resolve === 'loading'}
+                                onClick={() => {
+                                  onChangeResolveOfferId(`${offer.creator_id}-${index}`)
+                                  onResolve()
+                                }}
+                              >
+                                {status.resolve === 'loading' ? 'Resolving...' : 'Resolve'}
+                              </button>
+                            ) : (
+                              <button
+                                className="ghost-btn"
+                                style={{ flex: 1 }}
+                                disabled={status.bid === 'loading'}
+                                onClick={() => handleBidClick(`${offer.creator_id}-${index}`, offer.creator_id)}
+                              >
+                                Place Bid
+                              </button>
+                            )}
+                            {isMyBid && (
+                              <button
+                                className="ghost-btn"
+                                style={{ flex: 1 }}
+                                disabled={status.withdraw === 'loading'}
+                                onClick={() => handleWithdrawClick(`${offer.creator_id}-${index}`)}
+                              >
+                                {status.withdraw === 'loading' ? 'Withdrawing...' : 'Withdraw'}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))
+                )
+              })
             ) : (
-              <p className="muted">No offers yet.</p>
+              <p className="muted">{searchQuery ? 'No offers match your search.' : 'No offers yet.'}</p>
             )}
           </div>
         </div>

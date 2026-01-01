@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { ActionRow, Input, SectionCard } from '../components/ui'
+import { CardBadge } from '../components/CardIcon'
 import type { Card, User } from '../types/escalate'
 
 type Status = 'idle' | 'loading' | 'done'
@@ -46,62 +48,23 @@ export function ProfilePage({
   status,
   shorten,
 }: ProfilePageProps) {
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const filteredUsers = Array.isArray(users)
+    ? users.filter(user => {
+        if (!searchQuery) return true
+        const query = searchQuery.toLowerCase()
+        return (
+          user.user_id.toLowerCase().includes(query) ||
+          user.bio.toLowerCase().includes(query)
+        )
+      })
+    : []
+
   return (
     <section className="grid" id="profile">
-      <SectionCard title="Profile" subtitle="Register, fund, and view your cards">
-        <ActionRow
-          label="Register"
-          action={
-            <button className="primary-btn" disabled={status.register === 'loading'} onClick={onRegister}>
-              {status.register === 'loading' ? 'Registering...' : 'Register'}
-            </button>
-          }
-        >
-          <Input
-            label="Bio"
-            value={bio}
-            placeholder="Tell players who you are"
-            onChange={onBioChange}
-            error={bioError}
-          />
-        </ActionRow>
-
-        <ActionRow
-          label="Deposit"
-          action={
-            <button className="primary-btn" disabled={status.deposit === 'loading'} onClick={onDeposit}>
-              {status.deposit === 'loading' ? 'Depositing...' : 'Deposit'}
-            </button>
-          }
-        >
-          <Input
-            label="Amount"
-            type="number"
-            value={depositAmount}
-            placeholder="10.5"
-            onChange={onDepositChange}
-            error={depositError}
-          />
-        </ActionRow>
-
-        <ActionRow
-          label="Buy cards"
-          action={
-            <button className="primary-btn" disabled={status.buy === 'loading'} onClick={onBuy}>
-              {status.buy === 'loading' ? 'Buying...' : 'Buy cards'}
-            </button>
-          }
-        >
-          <Input
-            label="Amount"
-            type="number"
-            value={buyAmount}
-            placeholder="3"
-            onChange={onBuyChange}
-            error={buyError}
-          />
-        </ActionRow>
-
+      <SectionCard title="Profile">
+        {/* My Profile Section - Now at the top */}
         <div className="info-row">
           <div>
             <p className="eyebrow">My profile</p>
@@ -120,30 +83,115 @@ export function ProfilePage({
 
         <div className="card-collection">
           {myCards.length ? (
-            myCards.map((card) => (
-              <span key={card} className="badge badge--solid">
-                {card}
-              </span>
+            myCards.map((card, idx) => (
+              <CardBadge key={`${card}-${idx}`} card={card} />
             ))
           ) : (
             <p className="muted">No cards yet. Buy to get random cards.</p>
           )}
         </div>
 
+        {/* Divider */}
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '24px 0' }} />
+
+        {/* Action Sections - Now below profile */}
+        {!myProfile && (
+          <ActionRow
+            label="Register"
+            action={
+              <button className="primary-btn" disabled={status.register === 'loading'} onClick={onRegister}>
+                {status.register === 'loading' ? 'Registering...' : 'Register'}
+              </button>
+            }
+          >
+            <Input
+              label="Bio"
+              value={bio}
+              placeholder="Tell players who you are"
+              onChange={onBioChange}
+              error={bioError}
+            />
+          </ActionRow>
+        )}
+
+        {/* Deposit and Buy Cards side by side */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+          {/* Deposit Card */}
+          <div style={{ padding: '16px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+            <p className="eyebrow" style={{ marginBottom: '12px' }}>💰 Deposit</p>
+            <Input
+              label="Amount"
+              type="number"
+              value={depositAmount}
+              placeholder="10.5"
+              onChange={onDepositChange}
+              error={depositError}
+            />
+            <button 
+              className="primary-btn" 
+              disabled={status.deposit === 'loading'} 
+              onClick={onDeposit}
+              style={{ width: '100%', marginTop: '12px' }}
+            >
+              {status.deposit === 'loading' ? 'Depositing...' : 'Deposit'}
+            </button>
+          </div>
+
+          {/* Buy Cards Card */}
+          <div style={{ padding: '16px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+            <p className="eyebrow" style={{ marginBottom: '12px' }}>💳 Buy Cards</p>
+            <Input
+              label="Amount"
+              type="number"
+              value={buyAmount}
+              placeholder="3"
+              onChange={onBuyChange}
+              error={buyError}
+            />
+            <button 
+              className="primary-btn" 
+              disabled={status.buy === 'loading'} 
+              onClick={onBuy}
+              style={{ width: '100%', marginTop: '12px' }}
+            >
+              {status.buy === 'loading' ? 'Buying...' : 'Buy cards'}
+            </button>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '24px 0' }} />
+
         <div className="list">
-          <p className="eyebrow">All players</p>
-          <div className="list__grid">
-            {Array.isArray(users) && users.length > 0 ? (
-              users.map((user) => (
-                <div key={user.user_id} className="list__item">
-                  <p className="headline">{shorten(user.user_id)}</p>
-                  <p className="muted">{user.bio}</p>
-                  <p className="helper">Balance: {user.balance != null ? user.balance.toFixed(2) : '0.00'}</p>
-                  <p className="helper">Cards: {user.cards?.length ?? 0}</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <p className="eyebrow">All players</p>
+            <Input
+              label=""
+              value={searchQuery}
+              placeholder="Search by player ID or bio..."
+              onChange={setSearchQuery}
+            />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
+            {filteredUsers.length > 0 ? (
+              filteredUsers.map((user) => (
+                <div 
+                  key={user.user_id} 
+                  style={{ 
+                    padding: '12px', 
+                    background: 'rgba(255,255,255,0.05)', 
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.1)'
+                  }}
+                >
+                  <p className="headline" style={{ fontSize: '14px', marginBottom: '4px' }}>{shorten(user.user_id)}</p>
+                  <p className="muted" style={{ fontSize: '12px', marginBottom: '8px' }}>{user.bio}</p>
+                  <p className="helper" style={{ fontSize: '11px' }}>💰 {user.balance != null ? user.balance.toFixed(2) : '0.00'}</p>
+                  <p className="helper" style={{ fontSize: '11px' }}>🎴 {user.cards?.length ?? 0} cards</p>
                 </div>
               ))
             ) : (
-              <p className="muted">No players yet.</p>
+              <p className="muted">{searchQuery ? 'No players match your search.' : 'No players yet.'}</p>
             )}
           </div>
         </div>

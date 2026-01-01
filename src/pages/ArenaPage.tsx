@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { ActionRow, CardPills, Input, SectionCard } from '../components/ui'
+import { CardBadge } from '../components/CardIcon'
 import { CARD_OPTIONS, type Card, type Hand } from '../types/escalate'
 
 type Status = 'idle' | 'loading' | 'done'
@@ -39,7 +41,7 @@ export function ArenaPage({
   stakeCards,
   stakeError,
   checkHandId,
-  checkError,
+  checkError: _checkError,
   myCards,
   hands,
   status,
@@ -54,6 +56,22 @@ export function ArenaPage({
   onStakeHandError,
   shorten,
 }: ArenaPageProps) {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [modalHand, setModalHand] = useState<Hand | null>(null)
+
+  const filteredHands = Array.isArray(hands)
+    ? hands.filter(hand => {
+        if (!searchQuery) return true
+        const query = searchQuery.toLowerCase()
+        return (
+          hand.hand_id.toLowerCase().includes(query) ||
+          hand.creator.toLowerCase().includes(query) ||
+          hand.claimed_card.toLowerCase().includes(query) ||
+          hand.stakes.some(stake => stake.user_id.toLowerCase().includes(query))
+        )
+      })
+    : []
+
   const handleStakeClick = (handId: string) => {
     onChangeStakeHandId(handId)
     // Scroll to stake section or expand it
@@ -68,7 +86,7 @@ export function ArenaPage({
 
   return (
     <section className="grid" id="arena">
-      <SectionCard title="Arena" subtitle="Start hands, stake, and check outcomes">
+      <SectionCard title="Arena">
         <ActionRow
           label="Start hand"
           action={
@@ -148,65 +166,169 @@ export function ArenaPage({
         </ActionRow>
 
         <div className="list">
-          <p className="eyebrow">Active hands</p>
-          <div className="list__grid">
-            {Array.isArray(hands) && hands.length > 0 ? (
-              hands.map((hand) => (
-                <div key={hand.hand_id} className="list__item">
-                  <p className="headline">{hand.hand_id}</p>
-                  <p className="muted">Creator: {shorten(hand.creator)}</p>
-                  <p className="helper">Claimed: {hand.claimed_card}</p>
-                  <p className={`status status--${hand.is_resolved ? 'good' : 'warn'}`}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <p className="eyebrow">Active hands</p>
+            <Input
+              label=""
+              value={searchQuery}
+              placeholder="Search by hand ID, creator, or card..."
+              onChange={setSearchQuery}
+            />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
+            {filteredHands.length > 0 ? (
+              filteredHands.map((hand) => (
+                <div 
+                  key={hand.hand_id} 
+                  style={{ 
+                    padding: '12px', 
+                    background: 'rgba(255,255,255,0.05)', 
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px'
+                  }}
+                >
+                  <p className="headline" style={{ fontSize: '14px', marginBottom: '0' }}>{hand.hand_id}</p>
+                  <p className="muted" style={{ fontSize: '11px', marginBottom: '0' }}>Creator: {shorten(hand.creator)}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <p className="helper" style={{ fontSize: '11px', margin: 0 }}>Claimed:</p>
+                    <CardBadge card={hand.claimed_card} />
+                  </div>
+                  <p className={`status status--${hand.is_resolved ? 'good' : 'warn'}`} style={{ fontSize: '11px' }}>
                     {hand.is_resolved ? 'Resolved' : 'Open'}
                   </p>
                   
-                  {/* Show all stakes with their cards */}
+                  {/* Stakes summary button */}
                   {Array.isArray(hand.stakes) && hand.stakes.length > 0 && (
-                    <div style={{ marginTop: '12px' }}>
-                      <p className="helper" style={{ marginBottom: '8px' }}><strong>Stakes:</strong></p>
-                      {hand.stakes.map((stake) => (
-                        <div key={stake.user_id} style={{ marginBottom: '8px' }}>
-                          <p className="helper">{shorten(stake.user_id)}:</p>
-                          <div className="badge-row" style={{ marginTop: '4px' }}>
-                            {Array.isArray(stake.cards) && stake.cards.map((card, idx) => (
-                              <span key={`${card}-${idx}`} className="badge badge--solid">
-                                {card}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <button
+                      className="ghost-btn"
+                      style={{ fontSize: '11px', padding: '6px 8px' }}
+                      onClick={() => setModalHand(hand)}
+                    >
+                      👥 {hand.stakes.length} staker{hand.stakes.length !== 1 ? 's' : ''}
+                    </button>
                   )}
                   
                   {/* Action buttons */}
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                    {!hand.is_resolved && (
+                  {!hand.is_resolved && (
+                    <div style={{ display: 'flex', gap: '6px', marginTop: 'auto' }}>
                       <button 
                         className="ghost-btn" 
-                        style={{ flex: 1 }}
+                        style={{ flex: 1, fontSize: '11px', padding: '6px' }}
                         disabled={status.stake === 'loading'}
                         onClick={() => handleStakeClick(hand.hand_id)}
                       >
                         Stake
                       </button>
-                    )}
-                    <button 
-                      className="ghost-btn" 
-                      style={{ flex: 1 }}
-                      disabled={status.check === 'loading'}
-                      onClick={() => handleCheckClick(hand.hand_id)}
-                    >
-                      {status.check === 'loading' && checkHandId === hand.hand_id ? 'Checking...' : 'Check'}
-                    </button>
-                  </div>
+                      <button 
+                        className="ghost-btn" 
+                        style={{ flex: 1, fontSize: '11px', padding: '6px' }}
+                        disabled={status.check === 'loading'}
+                        onClick={() => handleCheckClick(hand.hand_id)}
+                      >
+                        {status.check === 'loading' && checkHandId === hand.hand_id ? '...' : 'Check'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))
             ) : (
-              <p className="muted">No hands yet.</p>
+              <p className="muted">{searchQuery ? 'No hands match your search.' : 'No hands yet.'}</p>
             )}
           </div>
         </div>
+
+        {/* Stakes Modal */}
+        {modalHand && (
+          <div 
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.8)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              padding: '20px'
+            }}
+            onClick={() => setModalHand(null)}
+          >
+            <div 
+              style={{
+                background: '#1a1a1a',
+                borderRadius: '12px',
+                padding: '24px',
+                maxWidth: '500px',
+                width: '100%',
+                maxHeight: '80vh',
+                overflow: 'auto',
+                border: '1px solid rgba(255,255,255,0.2)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ margin: 0, fontSize: '18px' }}>Stakes for {modalHand.hand_id}</h3>
+                <button 
+                  onClick={() => setModalHand(null)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#fff',
+                    fontSize: '24px',
+                    cursor: 'pointer',
+                    padding: '0',
+                    width: '30px',
+                    height: '30px'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div style={{ marginBottom: '16px', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                <p className="helper" style={{ marginBottom: '4px' }}>Creator: {shorten(modalHand.creator)}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                  <p className="helper">Claimed Card:</p>
+                  <CardBadge card={modalHand.claimed_card} />
+                </div>
+                <p className={`status status--${modalHand.is_resolved ? 'good' : 'warn'}`} style={{ marginTop: '8px' }}>
+                  {modalHand.is_resolved ? 'Resolved' : 'Open'}
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {modalHand.stakes.map((stake) => (
+                  <div 
+                    key={stake.user_id}
+                    style={{
+                      padding: '12px',
+                      background: 'rgba(255,255,255,0.05)',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.1)'
+                    }}
+                  >
+                    <p className="headline" style={{ fontSize: '14px', marginBottom: '8px' }}>
+                      {shorten(stake.user_id)}
+                    </p>
+                    <p className="helper" style={{ marginBottom: '8px' }}>
+                      <strong>{stake.cards?.length ?? 0} card{stake.cards?.length !== 1 ? 's' : ''}</strong>
+                    </p>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {Array.isArray(stake.cards) && stake.cards.map((card, idx) => (
+                        <CardBadge key={`${card}-${idx}`} card={card} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </SectionCard>
     </section>
   )

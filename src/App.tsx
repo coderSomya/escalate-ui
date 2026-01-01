@@ -532,6 +532,7 @@ function App() {
           withdrawOfferId={withdrawOfferId}
           myCards={myCards}
           offers={offers}
+          userAddress={account}
           status={{
             offer: actionState.offer,
             bid: actionState.bid,
