@@ -21,8 +21,8 @@ export const SectionCard = ({
 )
 
 export const CardPills = ({
-  selected,
-  available,
+  selected = [],
+  available = [],
   onToggle,
 }: {
   selected: Card[]
@@ -31,13 +31,17 @@ export const CardPills = ({
 }) => {
   const counts = useMemo(() => {
     const map = new Map<Card, number>()
-    available.forEach((card) => map.set(card, (map.get(card) ?? 0) + 1))
+    if (Array.isArray(available)) {
+      available.forEach((card) => map.set(card, (map.get(card) ?? 0) + 1))
+    }
     return map
   }, [available])
 
   const selectedCounts = useMemo(() => {
     const map = new Map<Card, number>()
-    selected.forEach((card) => map.set(card, (map.get(card) ?? 0) + 1))
+    if (Array.isArray(selected)) {
+      selected.forEach((card) => map.set(card, (map.get(card) ?? 0) + 1))
+    }
     return map
   }, [selected])
 
